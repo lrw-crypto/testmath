@@ -18,7 +18,45 @@ const ls = { get(k) { try { return localStorage.getItem(k); } catch { return nul
 let S = { user: null, data: null, view: "login", sess: null, cfg: { units: [], years: [], nums: [], count: 10 }, timer: null };
 const key = n => "mb:u:" + n;
 const blank = pin => ({ pin: hash(pin), wrong: {}, mastered: {}, log: [], created: Date.now() });
-function save() { if (S.user) ls.set(key(S.user), JSON.stringify(S.data)); }
+function save() { if (S.user) { ls.set(key(S.user), JSON.stringify(S.data)); schedulePush(); } }
+
+/* ---------- 雲端同步(Google 試算表 + Apps Script) ---------- */
+const CLOUD = () => String(window.CLOUD_URL || "").trim();
+const SY = { st: CLOUD() ? "idle" : "off", timer: null, pin: null, retry: null };
+function syncBadge() { const el = document.getElementById("sy"); if (el) el.textContent = { off: "", idle: "☁ 已同步", busy: "☁ 同步中…", err: "⚠ 尚未同步(會自動重試)" }[SY.st] || ""; }
+async function cloud(body, keepalive) {
+  const ac = new AbortController(), to = setTimeout(() => ac.abort(), 25000);
+  try { const r = await fetch(CLOUD(), { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify(body), signal: ac.signal, keepalive: !!keepalive && JSON.stringify(body).length < 60000 }); return await r.json(); }
+  finally { clearTimeout(to); }
+}
+const pack = d => ({ paper: d.paper || "B", wrong: d.wrong, mastered: d.mastered, log: d.log.slice(-1500) });
+function merge(a, b) {
+  const out = { wrong: {}, mastered: {}, log: [] };
+  const ids = new Set([a, b].flatMap(x => [...Object.keys(x.wrong || {}), ...Object.keys(x.mastered || {})]));
+  for (const id of ids) {
+    const c = [];
+    for (const x of [a, b]) { if (x.wrong?.[id]) c.push(["w", x.wrong[id].t || 0, x.wrong[id]]); if (x.mastered?.[id]) c.push(["m", x.mastered[id].t || 0, x.mastered[id]]); }
+    c.sort((p, q) => q[1] - p[1]); (c[0][0] === "w" ? out.wrong : out.mastered)[id] = c[0][2];
+  }
+  const seen = new Set();
+  for (const l of [...(a.log || []), ...(b.log || [])]) { const k = l.id + "@" + l.t; if (!seen.has(k)) { seen.add(k); out.log.push(l); } }
+  out.log.sort((p, q) => p.t - q.t); if (out.log.length > 6000) out.log.splice(0, out.log.length - 6000);
+  return out;
+}
+function schedulePush() {
+  if (!CLOUD() || !S.user || !SY.pin) return;
+  SY.st = "busy"; syncBadge(); clearTimeout(SY.timer); SY.timer = setTimeout(push, 2500);
+}
+async function push(keep) {
+  clearTimeout(SY.timer); SY.timer = null; clearTimeout(SY.retry);
+  if (!CLOUD() || !S.user || !SY.pin || !S.data) return;
+  const body = { a: "save", name: S.user, pin: SY.pin, data: pack(S.data) };
+  try { const r = await cloud(body, keep); SY.st = r.ok ? "idle" : "err"; if (!r.ok) SY.retry = setTimeout(push, 30000); }
+  catch { SY.st = "err"; SY.retry = setTimeout(push, 30000); }
+  syncBadge();
+}
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "hidden" && SY.timer) push(true); });
+window.addEventListener("pagehide", () => { if (SY.timer) push(true); });
 function rec(q, ok, mode) {
   const d = S.data, now = Date.now();
   d.log.push({ id: q.id, ok: ok ? 1 : 0, t: now, m: mode });
@@ -39,10 +77,11 @@ function draw(html) { $app.innerHTML = html; mathify(); window.scrollTo(0, 0); }
 function drawNav() {
   if (!S.user) { $nav.innerHTML = ""; return; }
   const t = [["practice", "自由練習"], ["exams", "模擬考"], ["wrong", `錯題本(${wrongList().length})`], ["me", "我的紀錄"]];
-  $nav.innerHTML = t.map(([k, n]) => `<button class="${S.view === k || (k === "practice" && S.view === "run" && S.sess?.mode === "practice") ? "on" : ""}" data-go="${k}">${n}</button>`).join("") + `<span class="pp">${["B", "C"].map(p => `<button class="${paper() === p ? "on" : ""}" data-paper="${p}">數學${p}</button>`).join("")}</span><span class="who">${esc(S.user)}</span><button data-go="logout">登出</button>`;
+  $nav.innerHTML = t.map(([k, n]) => `<button class="${S.view === k || (k === "practice" && S.view === "run" && S.sess?.mode === "practice") ? "on" : ""}" data-go="${k}">${n}</button>`).join("") + `<span class="pp">${["B", "C"].map(p => `<button class="${paper() === p ? "on" : ""}" data-paper="${p}">數學${p}</button>`).join("")}</span><span class="who">${esc(S.user)}</span><span class="who" id="sy"></span><button data-go="logout">登出</button>`;
+  syncBadge();
 }
 function go(v) {
-  if (v === "logout") { if (S.sess?.mode === "exam" && !confirm("考試進行中,登出會放棄本次作答,確定嗎?")) return; clearInterval(S.timer); try { sessionStorage.removeItem("mb:cur"); } catch {} S.user = S.data = S.sess = null; S.view = "login"; }
+  if (v === "logout") { if (S.sess?.mode === "exam" && !confirm("考試進行中,登出會放棄本次作答,確定嗎?")) return; clearInterval(S.timer); if (SY.timer) push(); try { sessionStorage.removeItem("mb:cur"); sessionStorage.removeItem("mb:pin"); } catch {} SY.pin = null; S.user = S.data = S.sess = null; S.view = "login"; }
   else { if (S.sess?.mode === "exam" && S.sess.live && v !== "run" && !confirm("離開會放棄本次模擬考,確定嗎?")) return; clearInterval(S.timer); S.view = v; if (v !== "run") S.sess = null; }
   render();
 }
@@ -57,16 +96,43 @@ function vLogin() {
   <label>4 位數密碼 <span class="note">(用下面的數字鍵輸入,或直接打字)</span></label><input id="pin" type="text" inputmode="numeric" maxlength="8" autocomplete="off" placeholder="例如 1234">
   <div class="pad">${[1,2,3,4,5,6,7,8,9].map(n=>`<button type="button" data-n="${n}">${n}</button>`).join("")}<button type="button" data-n="C">清除</button><button type="button" data-n="0">0</button><button type="button" data-n="B">←</button></div>
   <p id="err" class="note" style="color:var(--bad);min-height:22px"></p><div class="hint" style="margin:0 0 12px">⚠️ 請牢記你取的「名字」和「密碼」!以後要用<b>完全相同</b>的名字和密碼登入,才看得到自己的錯題與作答紀錄。忘記了無法找回。</div><button class="btn" id="ok">進入</button>
-  <p class="note" style="margin-top:14px">紀錄存在這台裝置的瀏覽器中。要換手機或電腦,請到「我的紀錄」匯出/匯入。</p></div>`);
-  const submit = () => {
-    const nz = v => v.normalize("NFKC").trim(), n = nz($app.querySelector("#nm").value), p = nz($app.querySelector("#pin").value), err = $app.querySelector("#err");
+  <p class="note" style="margin-top:14px">${CLOUD() ? "紀錄會自動存到雲端,換手機或電腦用同一個名字和密碼登入即可。" : "紀錄存在這台裝置的瀏覽器中。要換手機或電腦,請到「我的紀錄」匯出/匯入。"}</p></div>`);
+  let busy = false;
+  const submit = async () => {
+    if (busy) return;
+    const nz = v => v.normalize("NFKC").trim(), n = nz($app.querySelector("#nm").value), p = nz($app.querySelector("#pin").value), err = $app.querySelector("#err"), btn = $app.querySelector("#ok");
     if (!n) return err.textContent = "請輸入你的名字";
     if (!/^\d{4}$/.test(p)) return err.textContent = "密碼要是 4 位數字";
-    const raw = ls.get(key(n)); let d;
-    if (raw) { try { d = JSON.parse(raw); } catch { d = null; } if (d && d.pin !== hash(p)) return err.textContent = "密碼不對"; }
-    if (!d) d = blank(p);
-    S.user = n; S.data = d; save(); ls.set("mb:last", n); try { sessionStorage.setItem("mb:cur", n); } catch {}
+    let d = null; const raw = ls.get(key(n));
+    if (raw) { try { d = JSON.parse(raw); } catch { d = null; } }
+    const localOk = d && d.pin === hash(p);
+    let offline = false, note = "";
+    if (CLOUD()) {
+      busy = true; btn.disabled = true; btn.textContent = "登入中…"; err.textContent = "";
+      try {
+        const r = await cloud({ a: "login", name: n, pin: p, data: localOk ? pack(d) : null });
+        if (!r.ok) {
+          busy = false; btn.disabled = false; btn.textContent = "進入";
+          return err.textContent = r.err === "pin" ? "密碼不對" : r.err === "locked" ? `密碼輸錯太多次,請 ${r.wait || 10} 分鐘後再試` : r.err === "busy" ? "伺服器忙碌中,請稍後再按一次" : "雲端回應異常,請稍後再試";
+        }
+        if (!d) d = blank(p);
+        d.pin = hash(p);
+        if (r.data) { const m = merge(d, r.data); d.wrong = m.wrong; d.mastered = m.mastered; d.log = m.log; if (!localOk && r.data.paper) d.paper = r.data.paper; }
+        SY.st = "idle";
+      } catch {
+        busy = false; btn.disabled = false; btn.textContent = "進入";
+        if (!localOk) return err.textContent = "連不上雲端,請檢查網路後再試";
+        offline = true; SY.st = "err";
+      }
+      busy = false;
+    } else {
+      if (d && !localOk) return err.textContent = "密碼不對";
+      if (!d) d = blank(p);
+    }
+    S.user = n; S.data = d; SY.pin = CLOUD() ? p : null; ls.set(key(n), JSON.stringify(d)); ls.set("mb:last", n);
+    try { sessionStorage.setItem("mb:cur", n); if (CLOUD()) sessionStorage.setItem("mb:pin", p); } catch {}
     S.view = "practice"; render();
+    if (CLOUD()) { SY.st = "busy"; push(); }
   };
   $app.querySelector("#ok").onclick = submit;
   const pin = $app.querySelector("#pin");
@@ -187,16 +253,16 @@ function vMe() {
   Object.keys(last).forEach(id => { const q = BY[id]; if (!q) return; const p = per[q.unit]; if (!p) return; p.a = (p.a || 0) + 1; if (last[id]) p.c = (p.c || 0) + 1; });
   draw(`<h1>我的紀錄</h1><p class="lead">${esc(S.user)} · 共作答 ${d.log.length} 次 · 已克服 ${Object.keys(d.mastered).length} 題</p>
   <div class="card"><h2>數學${paper()}各單元表現(以每題最近一次作答計)</h2>${Object.entries(per).sort((a, b) => UNITS.indexOf(a[0]) - UNITS.indexOf(b[0])).map(([u, p]) => `<p style="margin:10px 0 2px">${esc(u)} <span class="note">已做 ${p.a || 0}/${p.t},最近答對 ${p.c || 0}</span></p><div class="bar"><i style="width:${p.a ? (p.c || 0) / p.a * 100 : 0}%"></i></div>`).join("")}</div>
-  <div class="card"><h2>備份 / 換裝置</h2><p class="note">紀錄只存在這台裝置。換手機或電腦前,先匯出檔案,再到新裝置用同一個名字登入前匯入。</p>
+  <div class="card"><h2>備份 / 換裝置</h2><p class="note">${CLOUD() ? "你的紀錄已自動同步到雲端,換裝置只要用同一個名字和密碼登入就會出現。這裡的匯出/匯入只是額外備份,或用來把舊紀錄併進來。" : "紀錄只存在這台裝置。換手機或電腦前,先匯出檔案,再到新裝置用同一個名字登入前匯入。"}</p>
   <div class="row"><button class="btn ghost" id="ex">匯出我的紀錄</button><button class="btn ghost" id="im">匯入紀錄</button><input id="file" type="file" accept=".json" hidden></div></div>`);
   $app.querySelector("#ex").onclick = () => { const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([JSON.stringify({ user: S.user, data: d })], { type: "application/json" })); a.download = `mathb-${S.user}.json`; a.click(); };
   $app.querySelector("#im").onclick = () => $app.querySelector("#file").click();
-  $app.querySelector("#file").onchange = async e => { try { const j = JSON.parse(await e.target.files[0].text()); if (!j.data?.log) throw 0; if (!confirm("匯入會覆蓋目前這個帳號的紀錄,確定嗎?")) return; const pin = d.pin; S.data = j.data; S.data.pin = pin; save(); alert("匯入完成"); render(); } catch { alert("檔案格式不對"); } };
+  $app.querySelector("#file").onchange = async e => { try { const j = JSON.parse(await e.target.files[0].text()); if (!j.data?.log) throw 0; if (!confirm("匯入會把檔案裡的紀錄合併進目前這個帳號,確定嗎?")) return; const m = merge(S.data, j.data); S.data.wrong = m.wrong; S.data.mastered = m.mastered; S.data.log = m.log; save(); alert("匯入完成"); render(); } catch { alert("檔案格式不對"); } };
 }
 
 /* ---------- 啟動 ---------- */
 (function init() {
   let cur = null; try { cur = sessionStorage.getItem("mb:cur"); } catch {}
-  if (cur) { try { const d = JSON.parse(ls.get(key(cur))); if (d) { S.user = cur; S.data = d; S.view = "practice"; } } catch {} }
+  if (cur) { try { const d = JSON.parse(ls.get(key(cur))); if (d) { S.user = cur; S.data = d; S.view = "practice"; try { SY.pin = sessionStorage.getItem("mb:pin"); } catch {} } } catch {} }
   render();
 })();
