@@ -52,15 +52,15 @@ function render() { drawNav(); ({ login: vLogin, practice: vPractice, exams: vEx
 
 /* ---------- 登入 ---------- */
 function vLogin() {
-  draw(`<h1>歡迎來刷題</h1><p class="lead">輸入座號或暱稱與 4 位數密碼。第一次使用會自動建立帳號。請不要用真實姓名。</p>
-  <div class="card" style="max-width:420px"><label>座號 / 暱稱</label><input id="nm" type="text" maxlength="20" autocomplete="off" value="${esc(ls.get("mb:last") || "")}">
+  draw(`<h1>歡迎來刷題</h1><p class="lead">自己取一個代稱(不要用真實姓名),再設定 4 位數密碼。第一次使用會自動建立帳號。</p>
+  <div class="card" style="max-width:420px"><label>你的名字(自己取的代稱)</label><input id="nm" type="text" maxlength="20" autocomplete="off" value="${esc(ls.get("mb:last") || "")}">
   <label>4 位數密碼 <span class="note">(用下面的數字鍵輸入,或直接打字)</span></label><input id="pin" type="text" inputmode="numeric" maxlength="8" autocomplete="off" placeholder="例如 1234">
   <div class="pad">${[1,2,3,4,5,6,7,8,9].map(n=>`<button type="button" data-n="${n}">${n}</button>`).join("")}<button type="button" data-n="C">清除</button><button type="button" data-n="0">0</button><button type="button" data-n="B">←</button></div>
-  <p id="err" class="note" style="color:var(--bad);min-height:22px"></p><button class="btn" id="ok">進入</button>
+  <p id="err" class="note" style="color:var(--bad);min-height:22px"></p><div class="hint" style="margin:0 0 12px">⚠️ 請牢記你取的「名字」和「密碼」!以後要用<b>完全相同</b>的名字和密碼登入,才看得到自己的錯題與作答紀錄。忘記了無法找回。</div><button class="btn" id="ok">進入</button>
   <p class="note" style="margin-top:14px">紀錄存在這台裝置的瀏覽器中。要換手機或電腦,請到「我的紀錄」匯出/匯入。</p></div>`);
   const submit = () => {
     const nz = v => v.normalize("NFKC").trim(), n = nz($app.querySelector("#nm").value), p = nz($app.querySelector("#pin").value), err = $app.querySelector("#err");
-    if (!n) return err.textContent = "請輸入座號或暱稱";
+    if (!n) return err.textContent = "請輸入你的名字";
     if (!/^\d{4}$/.test(p)) return err.textContent = "密碼要是 4 位數字";
     const raw = ls.get(key(n)); let d;
     if (raw) { try { d = JSON.parse(raw); } catch { d = null; } if (d && d.pin !== hash(p)) return err.textContent = "密碼不對"; }
@@ -187,7 +187,7 @@ function vMe() {
   Object.keys(last).forEach(id => { const q = BY[id]; if (!q) return; const p = per[q.unit]; if (!p) return; p.a = (p.a || 0) + 1; if (last[id]) p.c = (p.c || 0) + 1; });
   draw(`<h1>我的紀錄</h1><p class="lead">${esc(S.user)} · 共作答 ${d.log.length} 次 · 已克服 ${Object.keys(d.mastered).length} 題</p>
   <div class="card"><h2>數學${paper()}各單元表現(以每題最近一次作答計)</h2>${Object.entries(per).sort((a, b) => UNITS.indexOf(a[0]) - UNITS.indexOf(b[0])).map(([u, p]) => `<p style="margin:10px 0 2px">${esc(u)} <span class="note">已做 ${p.a || 0}/${p.t},最近答對 ${p.c || 0}</span></p><div class="bar"><i style="width:${p.a ? (p.c || 0) / p.a * 100 : 0}%"></i></div>`).join("")}</div>
-  <div class="card"><h2>備份 / 換裝置</h2><p class="note">紀錄只存在這台裝置。換手機或電腦前,先匯出檔案,再到新裝置用同一個座號登入前匯入。</p>
+  <div class="card"><h2>備份 / 換裝置</h2><p class="note">紀錄只存在這台裝置。換手機或電腦前,先匯出檔案,再到新裝置用同一個名字登入前匯入。</p>
   <div class="row"><button class="btn ghost" id="ex">匯出我的紀錄</button><button class="btn ghost" id="im">匯入紀錄</button><input id="file" type="file" accept=".json" hidden></div></div>`);
   $app.querySelector("#ex").onclick = () => { const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([JSON.stringify({ user: S.user, data: d })], { type: "application/json" })); a.download = `mathb-${S.user}.json`; a.click(); };
   $app.querySelector("#im").onclick = () => $app.querySelector("#file").click();
