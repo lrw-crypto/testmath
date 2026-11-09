@@ -80,7 +80,16 @@ function loadKatexFallback() {
   const load = (src, cb) => { const sc = document.createElement("script"); sc.src = src; sc.onload = cb; sc.onerror = () => { const m = document.getElementById("kerr"); if (!m) $app.insertAdjacentHTML("afterbegin", '<div id="kerr" class="hint">⚠️ 數學公式元件沒有載入成功,畫面會出現 $ 符號。請按 Ctrl+F5 重新整理;若還是這樣,請告訴老師。</div>'); }; document.head.appendChild(sc); };
   load(base + "katex.min.js", () => load(base + "contrib/auto-render.min.js", () => mathify()));
 }
-function mathify() { if (!window.renderMathInElement || !window.katex) { loadKatexFallback(); return; } try { renderMathInElement($app, { delimiters: [{ left: "$$", right: "$$", display: true }, { left: "$", right: "$", display: false }], throwOnError: false, output: "html" }); } catch (e) { console.error("math render failed", e); } }
+let cssChecked = 0;
+function ensureKatexCss() {
+  if (cssChecked) return; cssChecked = 1;
+  setTimeout(() => {
+    const t = document.createElement("span"); t.className = "katex"; t.innerHTML = '<span class="katex-html"><span class="strut" style="height:1em"></span></span>'; document.body.appendChild(t);
+    const bad = getComputedStyle(t).fontSize === getComputedStyle(document.body).fontSize && getComputedStyle(t.firstChild).display !== "inline-block" && getComputedStyle(t.firstChild.firstChild).display !== "inline-block"; t.remove();
+    if (bad) { const l = document.createElement("link"); l.rel = "stylesheet"; l.href = "https://cdn.jsdelivr.net/npm/katex@0.16.47/dist/katex.min.css"; document.head.appendChild(l); }
+  }, 1500);
+}
+function mathify() { ensureKatexCss(); if (!window.renderMathInElement || !window.katex) { loadKatexFallback(); return; } try { renderMathInElement($app, { delimiters: [{ left: "$$", right: "$$", display: true }, { left: "$", right: "$", display: false }], throwOnError: false, output: "html" }); } catch (e) { console.error("math render failed", e); } }
 function draw(html) { $app.innerHTML = html; mathify(); window.scrollTo(0, 0); }
 function drawNav() {
   if (!S.user) { $nav.innerHTML = ""; return; }
