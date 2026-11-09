@@ -95,12 +95,13 @@ function go(v) {
 }
 document.addEventListener("click", e => { const pb = e.target.closest("[data-paper]"); if (pb && S.data) { if (S.sess?.mode === "exam" && S.sess.live && !confirm("切換會放棄本次模擬考,確定嗎?")) return; clearInterval(S.timer); S.data.paper = pb.dataset.paper; S.cfg.units = []; S.sess = null; save(); S.view = S.view === "wrong" || S.view === "exams" || S.view === "me" ? S.view : "practice"; render(); return; } const b = e.target.closest("[data-go]"); if (b) go(b.dataset.go); });
 
-function render() { drawNav(); ({ login: vLogin, practice: vPractice, exams: vExams, wrong: vWrong, me: vMe, run: vRun, result: vResult }[S.view] || vLogin)(); }
+function render() { drawNav(); ({ print: vPrint, login: vLogin, practice: vPractice, exams: vExams, wrong: vWrong, me: vMe, run: vRun, result: vResult }[S.view] || vLogin)(); }
 
 /* ---------- 登入 ---------- */
 function vLogin() {
   draw(`<h1>歡迎來刷題</h1><p class="lead">自己取一個代稱(不要用真實姓名),再設定 4 位數密碼。第一次使用會自動建立帳號。</p>
-  <div class="card" style="max-width:420px"><label>你的名字(自己取的代稱)</label><input id="nm" type="text" maxlength="20" autocomplete="off" value="${esc(ls.get("mb:last") || "")}">
+  <div class="card" style="max-width:420px"><label>你的名字(自己取的代稱)</label><input id="nm" type="text" maxlength="20" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" lang="en" value="${esc(ls.get("mb:last") || "")}">
+  <p class="note" style="margin:4px 0 0">中文、英文、數字都可以。若輸入法切不到英文,按 <a href="#" id="kbt">⌨ 英數鍵盤</a> 用畫面上的鍵盤輸入。英文不分大小寫。</p><div id="kb" class="kb" hidden></div>
   <label>4 位數密碼 <span class="note">(用下面的數字鍵輸入,或直接打字)</span></label><input id="pin" type="text" inputmode="numeric" maxlength="8" autocomplete="off" placeholder="例如 1234">
   <div class="pad">${[1,2,3,4,5,6,7,8,9].map(n=>`<button type="button" data-n="${n}">${n}</button>`).join("")}<button type="button" data-n="C">清除</button><button type="button" data-n="0">0</button><button type="button" data-n="B">←</button></div>
   <p id="err" class="note" style="color:var(--bad);min-height:22px"></p><div class="hint" style="margin:0 0 12px">⚠️ 請牢記你取的「名字」和「密碼」!以後要用<b>完全相同</b>的名字和密碼登入,才看得到自己的錯題與作答紀錄。忘記了無法找回。</div><button class="btn" id="ok">進入</button>
@@ -108,7 +109,7 @@ function vLogin() {
   let busy = false;
   const submit = async () => {
     if (busy) return;
-    const nz = v => v.normalize("NFKC").trim(), n = nz($app.querySelector("#nm").value), p = nz($app.querySelector("#pin").value), err = $app.querySelector("#err"), btn = $app.querySelector("#ok");
+    const nz = v => v.normalize("NFKC").trim(), n = nz($app.querySelector("#nm").value).toLowerCase(), p = nz($app.querySelector("#pin").value), err = $app.querySelector("#err"), btn = $app.querySelector("#ok");
     if (!n) return err.textContent = "請輸入你的名字";
     if (!/^\d{4}$/.test(p)) return err.textContent = "密碼要是 4 位數字";
     let d = null; const raw = ls.get(key(n));
@@ -142,6 +143,10 @@ function vLogin() {
     S.view = "practice"; render();
     if (CLOUD()) { SY.st = "busy"; push(); }
   };
+  const nmEl = $app.querySelector("#nm"), kb = $app.querySelector("#kb");
+  kb.innerHTML = "1234567890qwertyuiopasdfghjklzxcvbnm".split("").map(c => `<button type="button" data-c="${c}">${c}</button>`).join("") + '<button type="button" data-c="_">_</button><button type="button" data-c="-">-</button><button type="button" data-c="⌫" class="wide">⌫ 刪除</button>';
+  kb.onclick = e => { const b = e.target.closest("[data-c]"); if (!b) return; const c = b.dataset.c; nmEl.value = c === "⌫" ? nmEl.value.slice(0, -1) : (nmEl.value + c).slice(0, 20); };
+  $app.querySelector("#kbt").onclick = e => { e.preventDefault(); kb.hidden = !kb.hidden; };
   $app.querySelector("#ok").onclick = submit;
   const pin = $app.querySelector("#pin");
   $app.querySelectorAll(".pad [data-n]").forEach(b => b.onclick = () => { const k = b.dataset.n; pin.value = k === "C" ? "" : k === "B" ? pin.value.slice(0, -1) : (pin.value + k).slice(0, 4); });
@@ -175,15 +180,49 @@ function vExams() {
 }
 
 /* ---------- 錯題本 ---------- */
+S.sel = new Set();
 function vWrong() {
   const l = wrongList().map(id => BY[id]).sort((a, b) => S.data.wrong[b.id].t - S.data.wrong[a.id].t), m = Object.keys(S.data.mastered).length;
+  S.sel = new Set([...S.sel].filter(id => l.some(q => q.id === id)));
   draw(`<h1>錯題本</h1><p class="lead">在這裡答對的題目,會從錯題本移除(記入「已克服」)。答錯就繼續留著。</p>
   <div class="card"><div class="count">${l.length}<small style="font-size:16px;color:var(--sub)"> 題待複習</small></div><p class="note">已克服 ${m} 題</p>
   <button class="btn" id="go" ${l.length ? "" : "disabled"}>刷錯題 →</button></div>
-  ${l.length ? `<div class="card"><h2>清單</h2>${l.map(q => `<p style="margin:6px 0"><span class="tag">${exLabel(q.exam)} 第${q.q}題</span> ${esc(q.unit)}・${esc(q.topic)} <span class="note">錯 ${S.data.wrong[q.id].n} 次</span></p>`).join("")}</div>` : '<p class="empty">目前沒有錯題,太強了!</p>'}`);
+  ${l.length ? `<div class="card"><h2>清單 <span class="note" id="selc"></span></h2>
+  <div class="row" style="margin-bottom:10px"><button class="chip" id="sa">全選</button><button class="chip" id="s2">只選一錯再錯(錯 2 次以上)</button><button class="chip" id="sn">全部取消</button></div>
+  ${l.map(q => `<label class="wr"><input type="checkbox" data-s="${esc(q.id)}" ${S.sel.has(q.id) ? "checked" : ""}><span><span class="tag">${exLabel(q.exam)} 第${q.q}題</span> ${esc(q.unit)}・${esc(q.topic)} <span class="note">錯 ${S.data.wrong[q.id].n} 次</span></span></label>`).join("")}
+  <div class="pdfbar"><label class="inl"><input type="checkbox" id="wans" checked> 附解答與詳解頁</label><label class="inl"><input type="checkbox" id="wsp" checked> 每題留空白計算區</label>
+  <button class="btn" id="pdf">產生練習卷(列印 / 存成 PDF)</button></div></div>` : '<p class="empty">目前沒有錯題,太強了!</p>'}`);
   const b = $app.querySelector("#go"); if (b) b.onclick = () => start("wrong", shuffle(l));
+  if (!l.length) return;
+  const upd = () => { $app.querySelector("#selc").textContent = `(已勾選 ${S.sel.size} 題)`; $app.querySelectorAll("[data-s]").forEach(c => c.checked = S.sel.has(c.dataset.s)); };
+  $app.querySelectorAll("[data-s]").forEach(c => c.onchange = () => { c.checked ? S.sel.add(c.dataset.s) : S.sel.delete(c.dataset.s); upd(); });
+  $app.querySelector("#sa").onclick = () => { S.sel = new Set(l.map(q => q.id)); upd(); };
+  $app.querySelector("#s2").onclick = () => { S.sel = new Set(l.filter(q => S.data.wrong[q.id].n >= 2).map(q => q.id)); upd(); if (!S.sel.size) alert("目前沒有錯 2 次以上的題目"); };
+  $app.querySelector("#sn").onclick = () => { S.sel = new Set(); upd(); };
+  $app.querySelector("#pdf").onclick = () => {
+    const ids = l.filter(q => S.sel.has(q.id)).map(q => q.id);
+    if (!ids.length) return alert("請先勾選要練習的題目");
+    S.pr = { ids, ans: $app.querySelector("#wans").checked, sp: $app.querySelector("#wsp").checked }; S.view = "print"; render();
+  };
+  upd();
 }
-
+function vPrint() {
+  const { ids, ans, sp } = S.pr, qs = ids.map(id => BY[id]).filter(Boolean), d = new Date();
+  const ds = `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}`, ks = ["A", "B", "C", "D"];
+  const opt = (q, k, i) => { const o = q.options[i]; return `<div class="po"><b>(${k})</b> ${/^IMG:/.test(o) ? `<img src="${esc(o.slice(4))}" alt="">` : `<span>${esc(o)}</span>`}</div>`; };
+  const anyImg = q => q.options.some(o => /^IMG:/.test(o));
+  draw(`<div class="noprint ptool"><button class="btn ghost" data-go="wrong">← 回錯題本</button><button class="btn" id="doprint">🖨 列印 / 存成 PDF</button>
+  <p class="note">按「列印」後,在列印視窗的「目的地」選「另存為 PDF」(手機請選「列印」→「儲存為 PDF」)。建議紙張 A4。</p></div>
+  <div class="pv"><div class="phead"><h1>數學${paper()} 錯題練習卷</h1><div>姓名/代稱:${esc(S.user)}　日期:${ds}　共 ${qs.length} 題　　得分:______</div></div>
+  ${qs.map((q, i) => `<section class="pq"><div class="pt"><b>${i + 1}.</b> <span class="src">(${exLabel(q.exam)} ${q.paper}卷 第${q.q}題)</span></div>
+  <div class="ps">${esc(q.stem)}</div>${q.figure ? `<img class="pfig" src="${esc(q.figure)}" alt="">` : ""}
+  <div class="pos ${anyImg(q) ? "img" : ""}">${ks.map((k, j) => opt(q, k, j)).join("")}</div>${sp ? '<div class="pwork">計算區</div>' : ""}</section>`).join("")}
+  ${ans ? `<div class="pbreak"></div><div class="phead"><h1>解答與詳解</h1></div>
+  <p class="pans"><b>答案速查:</b>${qs.map((q, i) => `${i + 1}. ${q.accept_all ? "送分" : q.answer}`).join("　")}</p>
+  ${qs.map((q, i) => { const e = q.explain || {}; return `<section class="pe"><div class="pt"><b>${i + 1}.</b> 答案 ${q.accept_all ? "(送分)" : q.answer}　<span class="src">${esc(q.unit)}・${esc(q.topic)}</span></div>
+  ${e.concept ? `<div><b>考點:</b>${esc(e.concept)}</div>` : ""}${(e.steps || []).length ? `<ol>${e.steps.map(x => `<li>${esc(x)}</li>`).join("")}</ol>` : ""}${e.pitfalls ? `<div><b>易錯:</b>${esc(e.pitfalls)}</div>` : ""}</section>`; }).join("")}` : ""}</div>`);
+  $app.querySelector("#doprint").onclick = () => window.print();
+}
 /* ---------- 作答流程 ---------- */
 function start(mode, qs) {
   clearInterval(S.timer);
