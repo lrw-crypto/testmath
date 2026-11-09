@@ -75,12 +75,12 @@ const wrongList = () => Object.keys(S.data.wrong).filter(id => BY[id] && BY[id].
 let kfb = 0;
 function loadKatexFallback() {
   if (kfb++) return;
-  const base = "https://cdn.jsdelivr.net/npm/katex@0.16/dist/";
+  const base = "https://cdn.jsdelivr.net/npm/katex@0.16.47/dist/";
   const l = document.createElement("link"); l.rel = "stylesheet"; l.href = base + "katex.min.css"; document.head.appendChild(l);
   const load = (src, cb) => { const sc = document.createElement("script"); sc.src = src; sc.onload = cb; sc.onerror = () => { const m = document.getElementById("kerr"); if (!m) $app.insertAdjacentHTML("afterbegin", '<div id="kerr" class="hint">⚠️ 數學公式元件沒有載入成功,畫面會出現 $ 符號。請按 Ctrl+F5 重新整理;若還是這樣,請告訴老師。</div>'); }; document.head.appendChild(sc); };
   load(base + "katex.min.js", () => load(base + "contrib/auto-render.min.js", () => mathify()));
 }
-function mathify() { if (!window.renderMathInElement || !window.katex) { loadKatexFallback(); return; } try { renderMathInElement($app, { delimiters: [{ left: "$$", right: "$$", display: true }, { left: "$", right: "$", display: false }], throwOnError: false }); } catch (e) { console.error("math render failed", e); } }
+function mathify() { if (!window.renderMathInElement || !window.katex) { loadKatexFallback(); return; } try { renderMathInElement($app, { delimiters: [{ left: "$$", right: "$$", display: true }, { left: "$", right: "$", display: false }], throwOnError: false, output: "html" }); } catch (e) { console.error("math render failed", e); } }
 function draw(html) { $app.innerHTML = html; mathify(); window.scrollTo(0, 0); }
 function drawNav() {
   if (!S.user) { $nav.innerHTML = ""; return; }

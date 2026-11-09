@@ -74,3 +74,4 @@ nav .pp button.on{background:var(--pri);color:#fff}
 .pwork{height:140px;border:1px dashed #aaa;border-radius:6px;margin-top:8px;color:#aaa;font-size:12px;padding:2px 6px}
 .pbreak{break-after:page;page-break-after:always}.pe ol{margin:4px 0;padding-left:22px}
 @media print{body{background:#fff}.top,.noprint{display:none!important}main{max-width:none;padding:0}.pv{padding:0;border-radius:0}@page{size:A4;margin:14mm}}
+.katex-mathml{position:absolute!important;clip:rect(1px,1px,1px,1px);padding:0!important;border:0!important;height:1px!important;width:1px!important;overflow:hidden}
