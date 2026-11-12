@@ -127,7 +127,7 @@ function render() { drawNav(); ({ print: vPrint, login: vLogin, practice: vPract
 /* ---------- 登入 ---------- */
 function vLogin() {
   draw(`<h1>歡迎來刷題</h1><p class="lead">自己取一個代稱(不要用真實姓名),再設定 4 位數密碼。第一次使用會自動建立帳號。</p>
-  <div class="card" style="max-width:420px"><label>你的名字(自己取的代稱)</label><input id="nm" type="text" maxlength="20" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" lang="en" value="${esc(ls.get("mb:last") || "")}">
+  <div class="card" style="max-width:420px"><label>你的名字(自己取的代稱)</label><input id="nm" type="text" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" lang="zh-Hant" enterkeyhint="go" value="${esc(ls.get("mb:last") || "")}">
   <p class="note" style="margin:4px 0 0">中文、英文、數字都可以。若輸入法切不到英文,按 <a href="#" id="kbt">⌨ 英數鍵盤</a> 用畫面上的鍵盤輸入。英文不分大小寫。</p><div id="kb" class="kb" hidden></div>
   <label>4 位數密碼 <span class="note">(用下面的數字鍵輸入,或直接打字)</span></label><input id="pin" type="text" inputmode="numeric" maxlength="8" autocomplete="off" placeholder="例如 1234">
   <div class="pad">${[1,2,3,4,5,6,7,8,9].map(n=>`<button type="button" data-n="${n}">${n}</button>`).join("")}<button type="button" data-n="C">清除</button><button type="button" data-n="0">0</button><button type="button" data-n="B">←</button></div>
@@ -177,7 +177,11 @@ function vLogin() {
   $app.querySelector("#ok").onclick = submit;
   const pin = $app.querySelector("#pin");
   $app.querySelectorAll(".pad [data-n]").forEach(b => b.onclick = () => { const k = b.dataset.n; pin.value = k === "C" ? "" : k === "B" ? pin.value.slice(0, -1) : (pin.value + k).slice(0, 4); });
-  $app.querySelectorAll("input").forEach(i => i.onkeydown = e => e.key === "Enter" && submit());
+  $app.querySelectorAll("input").forEach(i => i.onkeydown = e => { if (e.key === "Enter" && !e.isComposing && e.keyCode !== 229) submit(); });
+  const cap20 = () => { const t = Array.from(nmEl.value); if (t.length > 20) nmEl.value = t.slice(0, 20).join(""); };
+  nmEl.addEventListener("compositionend", cap20); nmEl.addEventListener("change", cap20); nmEl.addEventListener("blur", cap20);
+  const pinFix = () => { const v = pin.value.normalize("NFKC").replace(/\D/g, "").slice(0, 4); if (v !== pin.value) pin.value = v; };
+  pin.addEventListener("input", e => { if (!e.isComposing) pinFix(); }); pin.addEventListener("compositionend", pinFix);
 }
 
 /* ---------- 自由練習 ---------- */
