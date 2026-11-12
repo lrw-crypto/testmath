@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 215" width="400" height="215">
+<style>.axis{fill:none;stroke:#3f5160;stroke-width:2}.curve{fill:none;stroke:#08776d;stroke-width:4}.guide{fill:none;stroke:#7c9199;stroke-width:2;stroke-dasharray:5 4}circle{fill:#08776d}text{font:16px system-ui,sans-serif;fill:#18343c}</style>
+<rect width="400" height="215" rx="8" fill="white"/>
+      <path class="axis" d="M31 110H367m-10-6 10 6-10 6"/>
+      <path class="curve" d="M78 83v-9h122v9m0 0v-9h122v9"/>
+      <text x="136" y="61">4</text><text x="256" y="61">4</text>
+      <circle cx="78" cy="110" r="7"/><circle cx="200" cy="110" r="7"/><circle cx="322" cy="110" r="7"/>
+      <text x="63" y="145">−5</text><text x="184" y="145">−1</text><text x="315" y="145">3</text>
+      <text x="51" y="172">符合</text><text x="174" y="172">出發點</text><text x="303" y="172">捨去</text></svg>

@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 215" width="400" height="215">
+<style>.axis{fill:none;stroke:#3f5160;stroke-width:2}.curve{fill:none;stroke:#08776d;stroke-width:4}.guide{fill:none;stroke:#7c9199;stroke-width:2;stroke-dasharray:5 4}circle{fill:#08776d}text{font:16px system-ui,sans-serif;fill:#18343c}</style>
+<rect width="400" height="215" rx="8" fill="white"/>
+      <path fill="#fce5e4" d="M200 22H364V98H200Z"/>
+      <path class="axis" d="M200 22v172M40 98h324m-8-5 8 5-8 5M195 30l5-8 5 8"/>
+      <path class="curve" d="M68 35L291 182"/>
+      <text x="258" y="61">第一象限</text><text x="58" y="78">第二象限</text>
+      <text x="53" y="155">第三象限</text><text x="278" y="141">第四象限</text>
+      <text x="354" y="121">x</text><text x="178" y="29">y</text></svg>

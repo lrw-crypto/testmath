@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 215" width="400" height="215">
+<style>.axis{fill:none;stroke:#3f5160;stroke-width:2}.curve{fill:none;stroke:#08776d;stroke-width:4}.guide{fill:none;stroke:#7c9199;stroke-width:2;stroke-dasharray:5 4}circle{fill:#08776d}text{font:16px system-ui,sans-serif;fill:#18343c}</style>
+<rect width="400" height="215" rx="8" fill="white"/>
+      <path class="axis" d="M78 26v154h243m-8-5 8 5-8 5M73 34l5-8 5 8"/>
+      <path class="guide" d="M78 132H187V40"/><path class="curve" d="M78 132L187 40"/>
+      <circle cx="78" cy="132" r="6"/><circle cx="187" cy="40" r="6"/>
+      <text x="87" y="157">砲台 (0, 1)</text><text x="201" y="44">城堡 (2, 3)</text>
+      <text x="123" y="120">2</text><text x="196" y="97">2</text><text x="73" y="203">0</text>
+      <text x="299" y="203">東</text><text x="43" y="31">北</text></svg>
