@@ -78,3 +78,5 @@ nav .pp button.on{background:var(--pri);color:#fff}
 /* 手機/平板:觸控目標與縮放 */
 @media(pointer:coarse){.kb button{min-width:40px;min-height:44px}.pad button{min-height:48px}input[type=text],input[type=password],input[type=number],select{font-size:16px}}
 .paper-scan{touch-action:pan-x pan-y pinch-zoom}
+
+.kb .del{flex:1 0 auto;color:var(--bad)}
